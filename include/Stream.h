@@ -90,8 +90,8 @@ public:
 	
 //////////////////////////////////////////////////////////////////////////
 //解析绑定的数据流，取得消息参数
-	//取得组装好的消息的长度
-	unsigned short GetPos();
+	//已读到末尾
+	bool IsEnd();
 	/**
 	* 从流中取得一个数据char、unsigned char、int等各种类型的重载
 	* 成功返回true，失败返回false
@@ -124,18 +124,11 @@ public:
 		return GetData((int64*) value);
 	}
 	/**
-	 * 从消息中取得定长对象
-	 * 成功返回true，失败返回false
-	 * 
-	 * pStruct表示对象地址
-	 */
-	bool GetData(void* pStruct);
-	/**
 	 * 从消息中取得变长对象
 	 * 成功返回true，失败返回false
 	 * 
-	 * pStruct表示对象地址
-	 * uSize表示对象大小，
+	 * pStruct保存对象的缓冲
+	 * uSize输入缓冲容量，返回实际读出大小
 	 * 
 	 */
 	bool GetData(void* pStruct, short *uSize);
@@ -146,14 +139,13 @@ public:
 	/**
 	 * 从消息中取得变长对象的指针
 	 * 成功返回对象指针，失败返回NULL
-	 * uSize表示对象大小
+	 * uSize返回地址大小
 	*/
 	unsigned char* GetPointer( short *uSize );
 	unsigned char* GetPointer( unsigned short *uSize )
 	{
 		return GetPointer( (short*)uSize );
 	}
-	
 protected:
 	//绑定的缓冲区
 	unsigned char* m_pMsgBuffer;

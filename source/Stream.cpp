@@ -140,6 +140,11 @@ bool Stream::AddData( const void* pStruct, unsigned short uSize )
 	return true;
 }
 
+bool Stream::IsEnd()
+{
+	return m_uPos == m_uSize;
+}
+
 bool Stream::GetData( char *value )
 {
 	if ( m_uPos + sizeof(char) > m_uSize ) return false;
@@ -153,7 +158,6 @@ bool Stream::GetData( short *value )
 {
 	if ( m_uPos + sizeof(short) > m_uSize ) return false;
 	*value = (short)memtoi(&m_pMsgBuffer[m_uPos], sizeof(short));
-//	memcpy( value, &m_pMsgBuffer[m_uPos], sizeof(short) );
 	m_uPos += sizeof(short);
 	
 	return true;
@@ -181,7 +185,6 @@ bool Stream::GetData( long *value )
 {
 	if ( m_uPos + sizeof(long) > m_uSize ) return false;
 	*value = (long)memtoi(&m_pMsgBuffer[m_uPos], sizeof(long));
-//	memcpy( value, &m_pMsgBuffer[m_uPos], sizeof(long) );
 	m_uPos += sizeof(long);
 	
 	return true;
@@ -191,7 +194,6 @@ bool Stream::GetData( int32 *value )
 {
 	if ( m_uPos + sizeof(int32) > m_uSize ) return false;
 	*value = (int32)memtoi(&m_pMsgBuffer[m_uPos], sizeof(int32));
-//	memcpy( value, &m_pMsgBuffer[m_uPos], sizeof(int32) );
 	m_uPos += sizeof(int32);
 	
 	return true;
@@ -201,27 +203,22 @@ bool Stream::GetData( int64 *value )
 {
 	if ( m_uPos + sizeof(int64) > m_uSize ) return false;
 	*value = memtoi(&m_pMsgBuffer[m_uPos], sizeof(int64));
-//	memcpy( value, &m_pMsgBuffer[m_uPos], sizeof(int64) );
 	m_uPos += sizeof(int64);
 	
 	return true;
 }
 
-bool Stream::GetData( void *pStruct )
-{
-	unsigned short uSize;
-	if ( !GetData( &uSize ) ) return false;
-	if ( m_uPos + uSize > m_uSize ) return false;
-	memcpy( pStruct, &m_pMsgBuffer[m_uPos], uSize );
-	m_uPos += uSize;
-
-	return true;
-}
-
 bool Stream::GetData(void* pStruct, short *uSize)
 {
+	unsigned short maxSize = *uSize;
+	*uSize = 0;
+	if ( NULL == pStruct || maxSize <= 0 ) return false;
 	if ( !GetData( uSize ) ) return false;
-	if ( m_uPos + (*uSize) > m_uSize ) return false;
+	if ( m_uPos + (*uSize) > m_uSize || (*uSize) > maxSize ) 
+	{
+		*uSize = 0;
+		return false;
+	}
 	memcpy( pStruct, &m_pMsgBuffer[m_uPos], (*uSize) );
 	m_uPos += (*uSize);
 	
@@ -230,8 +227,13 @@ bool Stream::GetData(void* pStruct, short *uSize)
 
 unsigned char* Stream::GetPointer( short *uSize )
 {
+	*uSize = 0;
 	if ( !GetData( uSize ) ) return NULL;
-	if ( m_uPos + (*uSize) > m_uSize ) return NULL;
+	if ( m_uPos + (*uSize) > m_uSize ) 
+	{
+		*uSize = 0;
+		return NULL;
+	}
 	unsigned char *pStruct = &m_pMsgBuffer[m_uPos];
 	m_uPos += (*uSize);
 	

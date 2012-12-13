@@ -119,82 +119,77 @@ struct M_VALUE
 {
 	char *m_data;//成员的值的地址，对于struct，byte流等对象就是对象地址
 	unsigned short m_size;//成员长度，对于struct，byte流等对象就是对象大小
-	
+	bool m_bValid;//是否有效
 public:
 	M_VALUE(){}
 	~M_VALUE(){}
 
+	bool IsValid();//有效返回true,无效返回false
 	//设置变长数据到成员中，取变长对象值直接访问m_data m_size
 	bool SetValue( const void *value, unsigned short uSize );
 	operator std::string();
-	M_VALUE& operator = ( char *value );
-	M_VALUE& operator = ( const char *value )
+	bool operator = ( char *value );
+	bool operator = ( const char *value )
 	{
-		*this = (char*)value;
-		return *this;
+		return *this = (char*)value;
 	}
 	operator char();
 	operator unsigned char()
 	{
 		return (char)*this;
 	}
-	M_VALUE& operator = ( char value );
-	M_VALUE& operator = ( unsigned char value )
+	bool operator = ( char value );
+	bool operator = ( unsigned char value )
 	{
-		*this = (char)value;
-		return *this;
+		return *this = (char)value;
 	}
 	operator short();
 	operator unsigned short()
 	{
 		return (short)*this;
 	}
-	M_VALUE& operator = ( short value );
-	M_VALUE& operator = ( unsigned short value )
+	bool operator = ( short value );
+	bool operator = ( unsigned short value )
 	{
-		*this = (short)value;
-		return *this;
+		return *this = (short)value;
 	}
 	operator float();
-	M_VALUE& operator = ( float value );
+	bool operator = ( float value );
 	operator double();
-	M_VALUE& operator = ( double value );
+	bool operator = ( double value );
 	operator long();
 	operator unsigned long()
 	{
 		return (long)*this;
 	}
-	M_VALUE& operator = ( long value );
-	M_VALUE& operator = ( unsigned long value )
+	bool operator = ( long value );
+	bool operator = ( unsigned long value )
 	{
-		*this = (long)value;
-		return *this;
+		return *this = (long)value;
 	}
 	operator int32();
 	operator uint32()
 	{
 		return (int32)*this;
 	}
-	M_VALUE& operator = ( int32 value );
-	M_VALUE& operator = ( uint32 value )
+	bool operator = ( int32 value );
+	bool operator = ( uint32 value )
 	{
-		*this = (int32)value;
-		return *this;
+		return *this = (int32)value;
 	}
 	operator int64();
 	operator uint64()
 	{
 		return (int64)*this;
 	}
-	M_VALUE& operator = ( int64 value );
-	M_VALUE& operator = ( uint64 value )
+	bool operator = ( int64 value );
+	bool operator = ( uint64 value )
 	{
-		*this = (int64)value;
-		return *this;
+		return *this = (int64)value;
 	}
 
 	operator BStruct();
-	M_VALUE& operator = ( BStruct value );
+	bool operator = ( BStruct value );
 	
 private:
 	BStruct *m_parent;
@@ -222,7 +217,13 @@ public:
 	/*
 	 *	取得成员name，做取值/赋值操作
 	 *	赋值：
-	 *		直接将char short int...基本类型保存到结构中
+	 *		可以直接将char short int...基本类型保存到结构中
+	 *		成功返回true失败返回false，一般是长度不够
+	 *		比如可以向下面这样检查赋值操作是否成功
+	 *		if ( !(msg["port"] = 8080) ) ...;
+	 *		对于数据结构，可以使用SetValue进行赋值，比如
+	 *		if ( !msg["ip"].SetValue( "127.0.0.1", 9 ) ) ...;
+	 *
 	 *		※1：如果直接传递常量，将自动匹配到4~nbyte中最小的类型
 	 *		比如msg["port"] = 1;将认为是插入一个int，占4byte，如果希望只占1byte，请msg["port"] = (char)1;
 	 *		比如msg["port"] = 0xffffffff将认为是插入一个unsigned int，占4byte
@@ -253,15 +254,18 @@ public:
 	*/
 	unsigned char* PreBuffer( char *key );
 	unsigned short PreSize();//准备的缓冲的容量
+	bool IsValid();//有效返回true,无效返回false
 private:
 	bool Resolve();//解析绑定的数据流
 private:
 	Stream m_stream;
 	M_VALUE m_dataList[256];//报文最大支持256个成员
+	M_VALUE m_error;//操作失败时返回错误数据
 	int m_pos;
 	std::map<std::string, M_VALUE*> m_dataMap;
 	bool m_finished;
 	action m_action;
+	bool m_bValid;
 };
 
 }

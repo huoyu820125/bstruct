@@ -4,7 +4,6 @@
 
 #include "../include/BStruct.h"
 using namespace std;
-#include <assert.h>
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
@@ -14,9 +13,23 @@ namespace bsp
 
 BStruct::BStruct()
 {
+	m_error.m_data = NULL;
+	m_error.m_size = 0;
+	m_error.m_parent = NULL;
+	m_error.m_bValid = false;
+
+	int i = 0;
+	for ( i = 0; i < 256; i++ )
+	{
+		m_dataList[i].m_bValid = true;
+		m_dataList[i].m_parent = this;
+		m_dataList[i].m_size = 0;
+		m_dataList[i].m_data = NULL;
+	}
 	m_pos = 0;
 	m_finished = true;
 	m_action = BStruct::unknow;
+	m_bValid = false;
 }
 
 BStruct::~BStruct()
@@ -32,35 +45,10 @@ void BStruct::Bind(unsigned char *pBuffer, unsigned short uSize)
 	m_action = BStruct::write;
 }
 
-bool BStruct::Resolve(unsigned char *pBuffer, unsigned short uSize)
-{
-	m_pos = 0;
-	m_dataMap.clear();
-	m_stream.Bind(pBuffer, uSize);
-	m_action = BStruct::read;
-	return Resolve();
-}
-
-bool BStruct::Resolve()
-{
-	if ( BStruct::read != m_action ) return true;
-	char name[256];
-	unsigned short namesize;
-	m_stream.GetData(&namesize);//跳过长度
-	while ( m_stream.GetData( name, &namesize ) )
-	{
-		name[namesize] = 0;
-		m_dataList[m_pos].m_data = (char*)m_stream.GetPointer(&m_dataList[m_pos].m_size);
-		pair<map<std::string, M_VALUE*>::iterator, bool> ret = 
-			m_dataMap.insert(map<std::string, M_VALUE*>::value_type(name,&m_dataList[m_pos]));
-		m_pos++;
-	}
-	return true;
-}
-
 unsigned char* BStruct::GetStream()
 {
 	//将总长度保存到头部
+	if ( NULL == m_stream.GetStream() ) return NULL;
 	itomem(m_stream.GetStream(), m_stream.GetSize()-2, sizeof(short));
 	return m_stream.GetStream();
 }
@@ -83,235 +71,222 @@ unsigned short BStruct::PreSize()
 
 M_VALUE& BStruct::operator []( string key )
 {
-	assert( "" != key );
+	if ( "" == key ) return m_error;
 	map<std::string, M_VALUE*>::iterator it = m_dataMap.find( key );
 	if ( it == m_dataMap.end() ) 
 	{
-		assert( BStruct::write == m_action );
-		assert( m_finished );
+		if ( BStruct::write != m_action ) return m_error;
+		if ( !m_finished ) return m_error;
+		if ( !m_stream.AddData( (void*)key.c_str(), key.length() ) ) return m_error;
 		pair<map<std::string, M_VALUE*>::iterator, bool> ret = m_dataMap.insert(map<std::string, M_VALUE*>::value_type(key,&m_dataList[m_pos]));
-		assert( ret.second );
-		m_dataList[m_pos].m_parent = this;
-		assert( m_stream.AddData( (void*)key.c_str(), key.length() ) );
-		m_finished = false;
-		m_dataList[m_pos].m_data = (char*)(&m_stream.GetStream()[m_stream.GetSize()]);
+		if ( !ret.second ) return m_error;
 		m_dataList[m_pos].m_size = 0;
+		m_dataList[m_pos].m_data = (char*)(&m_stream.GetStream()[m_stream.GetSize()]);
+		m_finished = false;
 		m_pos++;
 		return *(ret.first->second);
 	}
 	return *(it->second);
 }
 
-M_VALUE::operator string()
+bool BStruct::IsValid()
 {
-	string value;
-	value.assign(m_data, m_size);
-	return value;
+	return m_bValid;
 }
 
-M_VALUE& M_VALUE::operator = ( char* value )
+bool BStruct::Resolve(unsigned char *pBuffer, unsigned short uSize)
 {
+	m_pos = 0;
+	m_dataMap.clear();
+	m_bValid = false;
+	if ( NULL == pBuffer || 0 >= uSize ) return false;
+	m_stream.Bind(pBuffer, uSize);
+	m_action = BStruct::read;
+	return Resolve();
+}
+
+bool BStruct::Resolve()
+{
+	if ( BStruct::read != m_action ) return false;
+	char name[257];//字段名最大256byte+'\0'257byte
+	unsigned short namesize;
+	if ( !m_stream.GetData(&namesize) ) return false;
+	namesize = 256;//设置GetData()最大读取256byte
+	while ( !m_stream.IsEnd() )
+	{
+		if ( !m_stream.GetData( name, &namesize ) ) return false;
+		m_dataList[m_pos].m_data = (char*)m_stream.GetPointer(&m_dataList[m_pos].m_size);
+		if ( NULL == m_dataList[m_pos].m_data ) return false;
+		name[namesize] = 0;
+		pair<map<std::string, M_VALUE*>::iterator, bool> ret = 
+			m_dataMap.insert(map<string, M_VALUE*>::value_type(name,&m_dataList[m_pos]));
+		m_pos++;
+		namesize = 256;//设置GetData()最大读取256byte
+	}
+	m_bValid = true;
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+//赋值操作
+bool M_VALUE::operator = ( char* value )
+{
+	if ( NULL == m_data ) return false;
 	unsigned short vLen = strlen(value);
 	if ( 0 >= m_size ) 
 	{
-		assert( m_parent->m_stream.AddData( value, vLen ) );
+		if ( !m_parent->m_stream.AddData( value, vLen ) ) return false;
 		m_size = vLen;
 		m_data = &m_data[2];
 		m_parent->m_finished = true;
-		return *this;
+		return true;
 	}
-	assert( m_size == vLen );
+	if ( m_size != vLen ) return false;
 	memcpy( m_data, value, m_size );
-	return *this;
+	return true;
 }
 
-M_VALUE::operator char()
-{
-	assert( m_size == sizeof(char) );
-	return (char)m_data[0];
-}
-
-M_VALUE& M_VALUE::operator = ( char value )
+bool M_VALUE::operator = ( char value )
 {	
+	if ( NULL == m_data ) return false;
 	if ( 0 >= m_size ) 
 	{
-		assert( m_parent->m_stream.AddData( &value, sizeof(char) ) );
+		if ( !m_parent->m_stream.AddData( &value, sizeof(char) ) ) return false;
 		m_size = sizeof(char);
 		m_data = &m_data[2];
 		m_parent->m_finished = true;
-		return *this;
+		return true;
 	}
-	assert( m_size == sizeof(char) );
+	if( m_size != sizeof(char) ) return false;
 	m_data[0] = value;
-	return *this;
+	return true;
 }
 
-M_VALUE::operator short()
+bool M_VALUE::operator = ( short value )
 {
-	assert( m_size == sizeof(short) );
-	short value = memtoi( (unsigned char*)m_data, m_size );
-	return value;
-}
-
-M_VALUE& M_VALUE::operator = ( short value )
-{	
+	if ( NULL == m_data ) return false;
 	unsigned char buf[sizeof(short)];
 	itomem(buf,value,sizeof(short));
 	if ( 0 >= m_size ) 
 	{
 		m_size = sizeof(short);
-		assert( m_parent->m_stream.AddData( buf, m_size ) );
+		if ( !m_parent->m_stream.AddData( buf, m_size ) ) return false;
 		m_data = &m_data[2];
 		m_parent->m_finished = true;
-		return *this;
+		return true;
 	}
-	assert( m_size == sizeof(short) );
+	if ( m_size != sizeof(short) ) return false;
 	memcpy( m_data, buf, m_size );
-	return *this;
+	return true;
 }
 
-M_VALUE::operator float()
-{
-	assert( m_size == sizeof(float) );
-	float value;
-	memcpy( &value, m_data, m_size );
-	return value;
-}
-
-M_VALUE& M_VALUE::operator = ( float value )
+bool M_VALUE::operator = ( float value )
 {	
+	if ( NULL == m_data ) return false;
 	if ( 0 >= m_size ) 
 	{
-		assert( m_parent->m_stream.AddData( &value, sizeof(float) ) );
+		if ( !m_parent->m_stream.AddData( &value, sizeof(float) ) ) return false;
 		m_size = sizeof(float);
 		m_data = &m_data[2];
 		m_parent->m_finished = true;
-		return *this;
+		return true;
 	}
-	assert( m_size == sizeof(float) );
+	if ( m_size != sizeof(float) ) return false;
 	memcpy( m_data, &value, m_size );
-	return *this;
+	return true;
 }
 
-M_VALUE::operator double()
+bool M_VALUE::operator = ( double value )
 {
-	assert( m_size == sizeof(double) );
-	double value;
-	memcpy( &value, m_data, m_size );
-	return value;
-}
-
-M_VALUE& M_VALUE::operator = ( double value )
-{
+	if ( NULL == m_data ) return false;
 	if ( 0 >= m_size ) 
 	{
-		assert( m_parent->m_stream.AddData( &value, sizeof(double) ) );
+		if ( !m_parent->m_stream.AddData( &value, sizeof(double) ) ) return false;
 		m_size = sizeof(double);
 		m_data = &m_data[2];
 		m_parent->m_finished = true;
-		return *this;
+		return true;
 	}
-	assert( m_size == sizeof(double) );
+	if ( m_size != sizeof(double) ) return false;
 	memcpy( m_data, &value, m_size );
-	return *this;
+	return true;
 }
 
-M_VALUE::operator long()
+bool M_VALUE::operator = ( long value )
 {
-	assert( m_size == sizeof(long) );
-	long value = memtoi( (unsigned char*)m_data, m_size );
-	return value;
-}
-
-M_VALUE& M_VALUE::operator = ( long value )
-{
+	if ( NULL == m_data ) return false;
 	unsigned char buf[sizeof(long)];
 	itomem(buf,value,sizeof(long));
 	if ( 0 >= m_size ) 
 	{
 		m_size = sizeof(long);
-		assert( m_parent->m_stream.AddData( buf, m_size ) );
+		if ( !m_parent->m_stream.AddData( buf, m_size ) ) return false;
 		m_data = &m_data[2];
 		m_parent->m_finished = true;
-		return *this;
+		return true;
 	}
-	assert( m_size == sizeof(long) );
+	if ( m_size != sizeof(long) ) return false;
 	memcpy( m_data, buf, m_size );
-	return *this;
+	return true;
 }
 
-M_VALUE::operator int32()
+bool M_VALUE::operator = ( int32 value )
 {
-	assert( m_size == sizeof(int32) );
-	int32 value = memtoi( (unsigned char*)m_data, m_size );
-	return value;
-}
-
-M_VALUE& M_VALUE::operator = ( int32 value )
-{	
+	if ( NULL == m_data ) return false;
 	unsigned char buf[sizeof(int32)];
 	itomem(buf,value,sizeof(int32));
 	if ( 0 >= m_size ) 
 	{
 		m_size = sizeof(int32);
-		assert( m_parent->m_stream.AddData( buf, m_size ) );
+		if ( !m_parent->m_stream.AddData( buf, m_size ) ) return false;
 		m_data = &m_data[2];
 		m_parent->m_finished = true;
-		return *this;
+		return true;
 	}
-	assert( m_size == sizeof(int32) );
+	if ( m_size != sizeof(int32) ) return false;
 	memcpy( m_data, buf, m_size );
-	return *this;
+	return true;
 }
 
-M_VALUE::operator int64()
-{
-	assert( m_size == sizeof(int64) );
-	int64 value = memtoi( (unsigned char*)m_data, m_size );
-	return value;
-}
-
-M_VALUE& M_VALUE::operator = ( int64 value )
+bool M_VALUE::operator = ( int64 value )
 {	
+	if ( NULL == m_data ) return false;
 	unsigned char buf[sizeof(int64)];
 	itomem(buf,value,sizeof(int64));
 	if ( 0 >= m_size ) 
 	{
 		m_size = sizeof(int64);
-		assert( m_parent->m_stream.AddData( buf, m_size ) );
+		if ( !m_parent->m_stream.AddData( buf, m_size ) ) return false;
 		m_data = &m_data[2];
 		m_parent->m_finished = true;
-		return *this;
+		return true;
 	}
-	assert( m_size == sizeof(int64) );
+	if ( m_size != sizeof(int64) ) return false;
 	memcpy( m_data, buf, m_size );
-	return *this;
+	return true;
 }
 
-M_VALUE::operator BStruct()
+bool M_VALUE::operator = ( BStruct value )
 {
-	BStruct value;
-	value.Resolve((unsigned char*)m_data, m_size);
-	return value;
-}
-
-M_VALUE& M_VALUE::operator = ( BStruct value )
-{
+	if ( NULL == m_data ) return false;
+	unsigned char *pStream = value.GetStream();
+	if ( NULL == pStream ) return false;
 	if ( 0 >= m_size ) 
 	{
-		assert( m_parent->m_stream.AddData( value.GetStream(), value.GetSize() ) );
+		if ( !m_parent->m_stream.AddData( pStream, value.GetSize() ) ) return false;
 		m_size = value.GetSize();
 		m_data = &m_data[2];
 		m_parent->m_finished = true;
-		return *this;
+		return true;
 	}
-	assert( m_size == sizeof(int64) );
-	memcpy( m_data, value.GetStream(), m_size );
-	return *this;
+	if ( m_size != value.GetSize() ) return false;
+	memcpy( m_data, pStream, m_size );
+	return true;
 }
 
 bool M_VALUE::SetValue( const void *value, unsigned short uSize )
 {
+	if ( NULL == value || 0 >= uSize ) return false;
 	if ( 0 >= m_size ) 
 	{
 		if ( !m_parent->m_stream.AddData( (unsigned char*)value, uSize ) ) return false;
@@ -320,9 +295,78 @@ bool M_VALUE::SetValue( const void *value, unsigned short uSize )
 		m_parent->m_finished = true;
 		return true;
 	}
-	if( m_size != sizeof(int64) ) return false;
+	if( m_size != uSize ) return false;
 	memcpy( m_data, (unsigned char*)value, m_size );
 	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+//取值操作
+bool M_VALUE::IsValid()
+{
+	return m_bValid;
+}
+
+M_VALUE::operator char()
+{
+	if ( NULL == m_data || m_size != sizeof(char) ) return (char)0xff;
+	return (char)m_data[0];
+}
+
+M_VALUE::operator short()
+{
+	if ( NULL == m_data || m_size != sizeof(short) ) return (short)0xffff;
+	return (short)memtoi( (unsigned char*)m_data, m_size );
+}
+
+M_VALUE::operator float()
+{
+	if ( NULL == m_data || m_size != sizeof(float) ) return (float)0xffffffff;
+	float value;
+	memcpy( &value, m_data, m_size );
+	return value;
+}
+
+M_VALUE::operator double()
+{
+	if ( NULL == m_data || m_size != sizeof(double) ) return 0xffffffff;
+	double value;
+	memcpy( &value, m_data, m_size );
+	return value;
+}
+
+M_VALUE::operator long()
+{
+	if ( NULL == m_data || m_size != sizeof(long) ) return 0xffffffff;
+	return(long)memtoi( (unsigned char*)m_data, m_size );
+}
+
+M_VALUE::operator int32()
+{
+	if ( NULL == m_data || m_size != sizeof(int32) ) return 0xffffffff;
+	return (int32)memtoi( (unsigned char*)m_data, m_size );
+}
+
+M_VALUE::operator int64()
+{
+	if ( NULL == m_data || m_size != sizeof(int64) ) return 0xffffffff;
+	return memtoi( (unsigned char*)m_data, m_size );
+}
+
+M_VALUE::operator string()
+{
+	if ( NULL == m_data ) return "";
+	string value;
+	value.assign(m_data, m_size);
+	return value;
+}
+
+M_VALUE::operator BStruct()
+{
+	BStruct value;
+	if ( NULL == m_data ) return value;
+	value.Resolve((unsigned char*)m_data, m_size);
+	return value;
 }
 
 }
