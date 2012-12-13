@@ -1,0 +1,268 @@
+// BStruct.h: interface for the BStruct class.
+//
+//////////////////////////////////////////////////////////////////////
+
+#ifndef PROTOCL_H
+#define PROTOCL_H
+
+#include "Stream.h"
+#include <map>
+#include <string>
+
+/*
+ *  二进制结构
+ *	是将二进制数据结构化的保存在数据流中的通信协议
+ *	成员由名字-值组成,类似xml可以定义复杂成员（嵌套）
+ *
+ *	结构的二进制格式=成员1~成员n的总长度(unsigned short)+成员1+成员2+成员3+成员4+...+成员n,成员之间无分割符
+ *	最多256个成员，如果不够可以将部分成员整合为一个BStruct嵌套进去
+ *
+ *	成员格式=成员名长度(unsigned short) + 成员名(string) 
+ *			+ 值长度(unsigned short) + 值(byte流)
+ *
+ *	因为每个成员，和成员值都是2进制流的表示，所以可以把n个成员，作为一个值
+ *	比如某个成员teacher，它的值可以是成员1+成员2+...+成员n
+ *
+ *	※关于short int等类型，的二进制存在形式的字节序
+ *	对于简单类型成员：以低位在前，高位在后
+ *		比如BStruct msg; msg["prot"] = (short)0xf1f2;这个就是低位在前，在结构中就是0xf2f1
+ *	对于变长数据，比如struct中的int 等成员，字节序为机器默认，请自行测试
+ *
+ *	※对于float double，为memcpy转换进byte流，非c/c++client请自行转换
+ *
+ *
+ *	范例
+ *
+ *	构造结构
+ *	范例1,简单成员：
+ *	unsigned char buf[256];
+ *	BStruct msg;
+ *	msg.Bind(buf,256);
+ *	msg["ip"] = "192.168.0.1";
+ *	msg["port"] = (short)8888;
+ *
+ *	范例2,复杂数据结构：
+ *	结构包含3个数据:配置文件，心跳时间，连接地址，其中连接地址是一个复杂数据结构，包含ip port2个数据
+ *	unsigned char buf[256];
+ *	BStruct msg;
+ *	msg.Bind(buf,256);
+ *	msg["cfg_file"] = "etc\ser.cfg";//设置配置文件
+ *	msg["heart_time"] = (char)60;//设置心跳时间
+ *	BStruct adr;
+ *	adr.Bind(msg.PreBuffer("ser"),msg.PreSize());//绑定到buf末尾
+ *	adr["ip"] = "192.168.0.1";
+ *	adr["port"] = (short)8888;
+ *	msg["connect_adr"] = adr;//设置连接地址
+ *
+ *	范例3,复杂数据结构填充方式2，只适用于c/c++：
+ *	结构内容同上
+ *	unsigned char buf[256];
+ *	BStruct msg;
+ *	msg.Bind(buf,256);
+ *	msg["cfg_file"] = "etc\ser.cfg";//设置配置文件
+ *	msg["heart_time"] = (char)60;//设置心跳时间
+ *	struct adr
+ *	{
+ *		char ip[21];
+ *		short port;
+ *	}
+ *	adr connect_adr;
+ *	memcpy( connect_adr.ip, "192.168.0.1", strlen("192.168.0.1") );
+ *	connect_adr.prot = 8888;
+ *	msg["connect_adr"].SetValue(&connect_adr,sizeof(adr));//设置连接地址
+ *
+ *	解析结构
+ *
+ *	范例1：解析构造范例1中结构：
+ *	BStruct msg;
+ *	unsigned buf;//任意方式（网络\文件\内存）得到了一个完整的结构
+ *	unsigned short size;//结构长度
+ *	msg.Resolve(buf,size);//结构到内存
+ *	string str = msg["ip"];//取得192.168.0.1
+ *	short port = msg["port"];//取得8888
+ *	
+ *	范例2：解析构造范例2中结构：
+ *	BStruct msg;
+ *	unsigned buf;//任意方式（网络\文件\内存）得到了一个完整的结构
+ *	unsigned short size;//结构长度
+ *	msg.Resolve(buf,size);//结构到内存
+ *	string cfg = msg["cfg_file"];//取得etc\ser.cfg
+ *	char ht = msg["heart_time"];//取得60;
+ *	BStruct adr = msg["connect_adr"];//取得复杂成员
+ *	string ip = adr["ip"];//取得192.168.0.1
+ *	short port = adr["port"];//取得8888
+ *	
+ *	范例3：解析构造范例3中结构：
+ *	BStruct msg;
+ *	unsigned buf;//任意方式（网络\文件\内存）得到了一个完整的结构
+ *	unsigned short size;//结构长度
+ *	msg.Resolve(buf,size);//结构到内存
+ *	string cfg = msg["cfg_file"];//取得etc\ser.cfg
+ *	char ht = msg["heart_time"];//取得60;
+ *	struct adr
+ *	{
+ *		char ip[21];
+ *		short port;
+ *	}
+ *	adr *connect_adr = msg["connect_adr"].m_data;//取得复杂数据结构地址
+ *	connect_adr->ip;//192.168.0.1
+ *	connect_adr->port;//取得8888
+*/
+namespace bsp
+{
+
+class BStruct;
+/*
+ *	成员值
+ */
+struct M_VALUE
+{
+	char *m_data;//成员的值的地址，对于struct，byte流等对象就是对象地址
+	unsigned short m_size;//成员长度，对于struct，byte流等对象就是对象大小
+	
+public:
+	M_VALUE(){}
+	~M_VALUE(){}
+
+	//设置变长数据到成员中，取变长对象值直接访问m_data m_size
+	bool SetValue( const void *value, unsigned short uSize );
+	operator std::string();
+	M_VALUE& operator = ( char *value );
+	M_VALUE& operator = ( const char *value )
+	{
+		*this = (char*)value;
+		return *this;
+	}
+	operator char();
+	operator unsigned char()
+	{
+		return (char)*this;
+	}
+	M_VALUE& operator = ( char value );
+	M_VALUE& operator = ( unsigned char value )
+	{
+		*this = (char)value;
+		return *this;
+	}
+	operator short();
+	operator unsigned short()
+	{
+		return (short)*this;
+	}
+	M_VALUE& operator = ( short value );
+	M_VALUE& operator = ( unsigned short value )
+	{
+		*this = (short)value;
+		return *this;
+	}
+	operator float();
+	M_VALUE& operator = ( float value );
+	operator double();
+	M_VALUE& operator = ( double value );
+	operator long();
+	operator unsigned long()
+	{
+		return (long)*this;
+	}
+	M_VALUE& operator = ( long value );
+	M_VALUE& operator = ( unsigned long value )
+	{
+		*this = (long)value;
+		return *this;
+	}
+	operator int32();
+	operator uint32()
+	{
+		return (int32)*this;
+	}
+	M_VALUE& operator = ( int32 value );
+	M_VALUE& operator = ( uint32 value )
+	{
+		*this = (int32)value;
+		return *this;
+	}
+	operator int64();
+	operator uint64()
+	{
+		return (int64)*this;
+	}
+	M_VALUE& operator = ( int64 value );
+	M_VALUE& operator = ( uint64 value )
+	{
+		*this = (int64)value;
+		return *this;
+	}
+
+	operator BStruct();
+	M_VALUE& operator = ( BStruct value );
+	
+private:
+	BStruct *m_parent;
+	friend class BStruct;
+};
+
+class BStruct  
+{
+private:
+	enum action
+	{
+		unknow = 0,
+		write = 1,
+		read = 2
+	};
+	friend struct M_VALUE;
+public:
+	BStruct();
+	virtual ~BStruct();
+
+public:
+	void Bind(unsigned char *pBuffer, unsigned short uSize);//绑定缓冲,用户填充
+	//解析数据流，解析后使用[]操作符直接取出对应成员结果
+	bool Resolve(unsigned char *pBuffer, unsigned short uSize);
+	/*
+	 *	取得成员name，做取值/赋值操作
+	 *	赋值：
+	 *		直接将char short int...基本类型保存到结构中
+	 *		※1：如果直接传递常量，将自动匹配到4~nbyte中最小的类型
+	 *		比如msg["port"] = 1;将认为是插入一个int，占4byte，如果希望只占1byte，请msg["port"] = (char)1;
+	 *		比如msg["port"] = 0xffffffff将认为是插入一个unsigned int，占4byte
+	 *		比如msg["port"] = 0xffffffff ff将认为是插入一个int64，占8byte
+	 *
+	 *		※2：成员第一次被赋值后，长度就确定了，以后只可以修改为相同大小的值，
+	 *		否则触发assert断言
+	 *
+	 *		※3：没有调用Bind()，不可以赋制，否则触发assert断言
+	 */
+	M_VALUE& operator []( std::string name );
+	unsigned char* GetStream();//取得数据流
+	unsigned short GetSize();//取得数据流长度
+	/*
+		为保存某个变长对象对象准备缓冲，返回缓冲首地址
+		与PreSize()一起使用，得到刚准备的缓冲的容量
+		对象填充完毕后，必须使用使用[]操作符，将对象保存到结构中，
+		才能再次调用PreBuffer为新成员准备缓冲
+		例：
+		unsigned char buf[1024]//消息缓冲
+		BStruct msg(buf,1024,BStruct::write);//创建一个结构，使用buf作为缓冲
+		//创建一个client成员，使用msg末尾的buf作为item的缓冲
+		//将成员名字client保存到msg的缓冲（buf）的末尾，
+		//所以不能连续调用PreBuffer，必须完成后续步骤
+		BStruct item(msg.PreBuffer("client"),msg.PreSize(),BStruct::write);
+		填充item，自由填充，超长会自动报错
+		msg["client"] = item;//将item连接到msg数据流的末尾
+	*/
+	unsigned char* PreBuffer( char *key );
+	unsigned short PreSize();//准备的缓冲的容量
+private:
+	bool Resolve();//解析绑定的数据流
+private:
+	Stream m_stream;
+	M_VALUE m_dataList[256];//报文最大支持256个成员
+	int m_pos;
+	std::map<std::string, M_VALUE*> m_dataMap;
+	bool m_finished;
+	action m_action;
+};
+
+}
+#endif // !defined(PROTOCL_H)
