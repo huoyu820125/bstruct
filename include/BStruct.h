@@ -40,12 +40,23 @@
  *	msg.Bind(buf,256);
  *	msg["ip"] = "192.168.0.1";
  *	msg["port"] = (short)8888;
- *
+ *	//※赋值有可能会失败，可以这样检查if ( !(msg["ip"] = "192.168.0.1") )
+ *	//失败原因只有4个且都是不正确的使用BStruct引起，所以检查赋值结果其实没有实际意义，
+ *	//因为你已经用法就错误了，即使检查捕获了错误，报文也是非法的，程序虽然避免了崩溃的危险，
+ *	//但逻辑上已经是不可用的。
+ *	//唯一意义就是，调试阶段检查可以帮助发现代码漏洞，即时修正
+ *	//1.buf为NULL或长度不足
+ *	//2.当前模式是不是创建（即没有调用Bind()或Bind()之后又调用Resolve()模式被覆盖为解析
+ *	//3.已经存在同名成员，且当前数据长度与新写入长度不相同，不允许修改数据
+ *	//4.创建了新成员，没有完成赋值msg["new_member"];这样就会创建新成员不做赋值
+ *	
  *	范例2,复杂数据结构：
  *	结构包含3个数据:配置文件，心跳时间，连接地址，其中连接地址是一个复杂数据结构，包含ip port2个数据
  *	unsigned char buf[256];
  *	BStruct msg;
  *	msg.Bind(buf,256);
+ *	if ( !msg["cfg_file"].IsValid() )//检查cfg_file是否存在
+ *	//由于是范例以下不检查数据合法性，实际使用时建议都检查
  *	msg["cfg_file"] = "etc\ser.cfg";//设置配置文件
  *	msg["heart_time"] = (char)60;//设置心跳时间
  *	BStruct adr;
@@ -119,7 +130,6 @@ struct M_VALUE
 {
 	char *m_data;//成员的值的地址，对于struct，byte流等对象就是对象地址
 	unsigned short m_size;//成员长度，对于struct，byte流等对象就是对象大小
-	bool m_bValid;//是否有效
 public:
 	M_VALUE(){}
 	~M_VALUE(){}

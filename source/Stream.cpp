@@ -47,18 +47,17 @@ void Stream::Bind(unsigned char *pBuffer, unsigned uSize)
 	m_uPos = 0;
 }
 
-//取得组装好的消息
 unsigned char* Stream::GetStream()
 {
 	return this->m_pMsgBuffer;
 }
-//取得组装好的消息的长度
-unsigned short Stream::GetSize()
+
+unsigned short Stream::Pos()
 {
 	return this->m_uPos;
 }
 
-unsigned short Stream::GetBufferSize()
+unsigned short Stream::GetSize()
 {
 	return this->m_uSize;
 }
@@ -214,7 +213,7 @@ bool Stream::GetData(void* pStruct, short *uSize)
 	*uSize = 0;
 	if ( NULL == pStruct || maxSize <= 0 ) return false;
 	if ( !GetData( uSize ) ) return false;
-	if ( m_uPos + (*uSize) > m_uSize || (*uSize) > maxSize ) 
+	if ( 0 >= (*uSize) || (*uSize) > maxSize || m_uPos + (*uSize) > m_uSize ) 
 	{
 		*uSize = 0;
 		return false;
@@ -229,7 +228,7 @@ unsigned char* Stream::GetPointer( short *uSize )
 {
 	*uSize = 0;
 	if ( !GetData( uSize ) ) return NULL;
-	if ( m_uPos + (*uSize) > m_uSize ) 
+	if ( 0 >= (*uSize) || m_uPos + (*uSize) > m_uSize ) 
 	{
 		*uSize = 0;
 		return NULL;

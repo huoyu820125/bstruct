@@ -33,14 +33,14 @@ public:
 
 public:
 	void Bind(unsigned char *pBuffer, unsigned uSize);//绑定一个缓冲区，在此之上做转换
-	//取得缓冲容量
-	unsigned short GetBufferSize();
+	//取得缓冲容量(对应创建数据流)/消息长度(对应解析数据流)
+	unsigned short GetSize();
 //////////////////////////////////////////////////////////////////////////
 //组装消息流，用于输出
 	//取得组装好的数据流,并在头部设置数据长度
 	unsigned char* GetStream();
-	//取得组装好的消息的长度
-	unsigned short GetSize();
+	//取得当前游标位置（对于组装消息即数据长度，对于解析消息即下一个数据的开始位置）
+	unsigned short Pos();
 	//组装方法，填充参数到流
 	/**
 	 * 增加1个参数到消息中,char、unsigned char、int等各种类型的重载

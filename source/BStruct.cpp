@@ -16,12 +16,10 @@ BStruct::BStruct()
 	m_error.m_data = NULL;
 	m_error.m_size = 0;
 	m_error.m_parent = NULL;
-	m_error.m_bValid = false;
 
 	int i = 0;
 	for ( i = 0; i < 256; i++ )
 	{
-		m_dataList[i].m_bValid = true;
 		m_dataList[i].m_parent = this;
 		m_dataList[i].m_size = 0;
 		m_dataList[i].m_data = NULL;
@@ -40,6 +38,7 @@ void BStruct::Bind(unsigned char *pBuffer, unsigned short uSize)
 {
 	m_pos = 0;
 	m_dataMap.clear();
+	if ( NULL == pBuffer || 0 >= uSize ) return;
 	m_stream.Bind(pBuffer, uSize);
 	m_stream.AddData( uSize );
 	m_action = BStruct::write;
@@ -47,31 +46,32 @@ void BStruct::Bind(unsigned char *pBuffer, unsigned short uSize)
 
 unsigned char* BStruct::GetStream()
 {
-	//将总长度保存到头部
 	if ( NULL == m_stream.GetStream() ) return NULL;
-	itomem(m_stream.GetStream(), m_stream.GetSize()-2, sizeof(short));
+	itomem(m_stream.GetStream(), m_stream.Pos()-2, sizeof(short));//将总长度保存到头部
 	return m_stream.GetStream();
 }
 
 unsigned short BStruct::GetSize()
 {
-	return m_stream.GetSize();
+	if ( BStruct::write == m_action ) return m_stream.Pos();
+	else if ( BStruct::read == m_action ) return m_stream.GetSize();
+	else return 0;
 }
 
 unsigned char* BStruct::PreBuffer( char *key )
 {
 	(*this)[key];
-	return &(GetStream()[GetSize()+sizeof(unsigned short)]);
+	return &(GetStream()[m_stream.Pos()+sizeof(unsigned short)]);
 }
 
 unsigned short BStruct::PreSize()
 {
-	return m_stream.GetBufferSize() - sizeof(unsigned short) - GetSize();
+	return m_stream.GetSize() - sizeof(unsigned short) - m_stream.Pos();
 }
 
 M_VALUE& BStruct::operator []( string key )
 {
-	if ( "" == key ) return m_error;
+	if ( BStruct::unknow == m_action ||  "" == key ) return m_error;
 	map<std::string, M_VALUE*>::iterator it = m_dataMap.find( key );
 	if ( it == m_dataMap.end() ) 
 	{
@@ -81,7 +81,7 @@ M_VALUE& BStruct::operator []( string key )
 		pair<map<std::string, M_VALUE*>::iterator, bool> ret = m_dataMap.insert(map<std::string, M_VALUE*>::value_type(key,&m_dataList[m_pos]));
 		if ( !ret.second ) return m_error;
 		m_dataList[m_pos].m_size = 0;
-		m_dataList[m_pos].m_data = (char*)(&m_stream.GetStream()[m_stream.GetSize()]);
+		m_dataList[m_pos].m_data = (char*)(&m_stream.GetStream()[m_stream.Pos()]);
 		m_finished = false;
 		m_pos++;
 		return *(ret.first->second);
@@ -120,6 +120,12 @@ bool BStruct::Resolve()
 		name[namesize] = 0;
 		pair<map<std::string, M_VALUE*>::iterator, bool> ret = 
 			m_dataMap.insert(map<string, M_VALUE*>::value_type(name,&m_dataList[m_pos]));
+		if ( !ret.second )//重名成员 
+		{
+			m_dataList[m_pos].m_size = 0;
+			return false;
+		}
+		
 		m_pos++;
 		namesize = 256;//设置GetData()最大读取256byte
 	}
@@ -304,7 +310,7 @@ bool M_VALUE::SetValue( const void *value, unsigned short uSize )
 //取值操作
 bool M_VALUE::IsValid()
 {
-	return m_bValid;
+	return NULL != m_data;
 }
 
 M_VALUE::operator char()

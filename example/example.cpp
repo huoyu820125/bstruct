@@ -7,15 +7,16 @@ int main()
 	unsigned char buf[256];
 	//构造一个结构化消息
 	bsp::BStruct p;
+	
 	p.Bind(buf,256);//与缓冲绑定，以后往结构里添加数据，都会到添加到buf末尾
-	p["1"] = "1";//往结构里添数据
-	p["2"] = (unsigned char)2;//往结构里添数据
-	p["3"] = (unsigned short)3;//往结里构添数据
-	p["4"] = (unsigned int)4;//往结构里添数据
-	p["5"] = (float)5;//往结构里添数据
-	p["6"] = (double)6;//往结构里添数据
-	p["7"] = (unsigned long)7;//往结构里添数据
-	p["8"] = (uint32)8;//往结构里添数据
+	bool b = p["1"] = "1";//往结构里添数据
+	b = p["2"] = (unsigned char)2;//往结构里添数据
+	b = p["3"] = (unsigned short)3;//往结里构添数据
+	b = p["4"] = (unsigned int)4;//往结构里添数据
+	b = p["5"] = (float)5;//往结构里添数据
+	b = p["6"] = (double)6;//往结构里添数据
+	b = p["7"] = (unsigned long)7;//往结构里添数据
+	b = p["8"] = (uint32)8;//往结构里添数据
 	struct BSD
 	{
 		int i;
@@ -39,7 +40,9 @@ int main()
 	//将结构发送到网络，这里用memcpy到内存，模拟网络发送/接收
 	char msg[1024];
 	int nLen;
-	memcpy( msg, p.GetStream(), p.GetSize() );//发送出去
+	memcpy( msg, p.GetStream(), 2 );//发送出去
+	nLen = bsp::memtoi((unsigned char*)msg, 2);
+	memcpy( &msg[2], &p.GetStream()[2], nLen );//发送出去
 
 	//接收并解析结构
 	nLen = p.GetSize();//接收到结构大小
@@ -47,6 +50,7 @@ int main()
 	p1.Resolve((unsigned char*)msg,nLen);//解析
 	//取数据
 	string str = (string)p1["1"];
+	if ( !p1["2"].IsValid() ) return 0;//检查名字为2的数据是否有效（是否存在）
 	char c = p1["2"];
 	short s = p1["3"];
 	int i = p1["4"];
@@ -56,6 +60,7 @@ int main()
 	int32 i32 = p1["8"];
 	int64 i64 = p1["9"];
 	bsp::BStruct po2 = p1["10"];
+	if ( !po2.IsValid() ) return 0;//检查嵌套的结构是否有效（是否成功解析）
 	printf( "%s\n", str.c_str() );
 	printf( "%d\n", c );
 	printf( "%d\n", s );
