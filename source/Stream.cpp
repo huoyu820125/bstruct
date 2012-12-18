@@ -40,7 +40,7 @@ Stream::~Stream()
 {
 }
 
-void Stream::Bind(unsigned char *pBuffer, unsigned uSize)
+void Stream::Bind(unsigned char *pBuffer, unsigned int uSize)
 {
 	m_pMsgBuffer = pBuffer;
 	m_uSize = uSize;
@@ -52,12 +52,12 @@ unsigned char* Stream::GetStream()
 	return this->m_pMsgBuffer;
 }
 
-unsigned short Stream::Pos()
+unsigned int Stream::Pos()
 {
 	return this->m_uPos;
 }
 
-unsigned short Stream::GetSize()
+unsigned int Stream::GetSize()
 {
 	return this->m_uSize;
 }

@@ -221,9 +221,9 @@ public:
 	virtual ~BStruct();
 
 public:
-	void Bind(unsigned char *pBuffer, unsigned short uSize);//绑定缓冲,用户填充
+	void Bind(unsigned char *pBuffer, unsigned int uSize);//绑定缓冲,用户填充
 	//解析数据流，解析后使用[]操作符直接取出对应成员结果
-	bool Resolve(unsigned char *pBuffer, unsigned short uSize);
+	bool Resolve(unsigned char *pBuffer, unsigned int uSize);
 	/*
 	 *	取得成员name，做取值/赋值操作
 	 *	赋值：
@@ -246,7 +246,7 @@ public:
 	 */
 	M_VALUE& operator []( std::string name );
 	unsigned char* GetStream();//取得数据流
-	unsigned short GetSize();//取得数据流长度
+	unsigned int GetSize();//取得数据流长度
 	/*
 		为保存某个变长对象对象准备缓冲，返回缓冲首地址
 		与PreSize()一起使用，得到刚准备的缓冲的容量
@@ -263,7 +263,7 @@ public:
 		msg["client"] = item;//将item连接到msg数据流的末尾
 	*/
 	unsigned char* PreBuffer( char *key );
-	unsigned short PreSize();//准备的缓冲的容量
+	unsigned int PreSize();//准备的缓冲的容量
 	bool IsValid();//有效返回true,无效返回false
 private:
 	bool Resolve();//解析绑定的数据流
@@ -271,7 +271,7 @@ private:
 	Stream m_stream;
 	M_VALUE m_dataList[256];//报文最大支持256个成员
 	M_VALUE m_error;//操作失败时返回错误数据
-	int m_pos;
+	unsigned int m_pos;
 	std::map<std::string, M_VALUE*> m_dataMap;
 	bool m_finished;
 	action m_action;

@@ -34,7 +34,7 @@ BStruct::~BStruct()
 {
 }
 
-void BStruct::Bind(unsigned char *pBuffer, unsigned short uSize)
+void BStruct::Bind(unsigned char *pBuffer, unsigned int uSize)
 {
 	m_pos = 0;
 	m_dataMap.clear();
@@ -48,7 +48,7 @@ unsigned char* BStruct::GetStream()
 	return m_stream.GetStream();
 }
 
-unsigned short BStruct::GetSize()
+unsigned int BStruct::GetSize()
 {
 	if ( BStruct::write == m_action ) return m_stream.Pos();
 	else if ( BStruct::read == m_action ) return m_stream.GetSize();
@@ -61,7 +61,7 @@ unsigned char* BStruct::PreBuffer( char *key )
 	return &(GetStream()[m_stream.Pos()+sizeof(unsigned short)]);
 }
 
-unsigned short BStruct::PreSize()
+unsigned int BStruct::PreSize()
 {
 	return m_stream.GetSize() - sizeof(unsigned short) - m_stream.Pos();
 }
@@ -91,7 +91,7 @@ bool BStruct::IsValid()
 	return m_bValid;
 }
 
-bool BStruct::Resolve(unsigned char *pBuffer, unsigned short uSize)
+bool BStruct::Resolve(unsigned char *pBuffer, unsigned int uSize)
 {
 	m_pos = 0;
 	m_dataMap.clear();
