@@ -40,9 +40,10 @@ int main()
 	//将结构发送到网络，这里用memcpy到内存，模拟网络发送/接收
 	char msg[1024];
 	int nLen;
-	memcpy( msg, p.GetStream(), 2 );//发送出去
+	bsp::itomem( (unsigned char*)msg, p.GetSize(), 2 );//发送出去
+	memcpy( &msg[2], p.GetStream(), 2 );//发送出去
 	nLen = bsp::memtoi((unsigned char*)msg, 2);
-	memcpy( &msg[2], &p.GetStream()[2], nLen );//发送出去
+	memcpy( msg, p.GetStream(), nLen );//发送出去
 
 	//接收并解析结构
 	nLen = p.GetSize();//接收到结构大小

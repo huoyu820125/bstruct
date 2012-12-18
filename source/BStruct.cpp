@@ -40,14 +40,11 @@ void BStruct::Bind(unsigned char *pBuffer, unsigned short uSize)
 	m_dataMap.clear();
 	if ( NULL == pBuffer || 0 >= uSize ) return;
 	m_stream.Bind(pBuffer, uSize);
-	m_stream.AddData( uSize );
 	m_action = BStruct::write;
 }
 
 unsigned char* BStruct::GetStream()
 {
-	if ( NULL == m_stream.GetStream() ) return NULL;
-	itomem(m_stream.GetStream(), m_stream.Pos()-2, sizeof(short));//将总长度保存到头部
 	return m_stream.GetStream();
 }
 
@@ -110,7 +107,6 @@ bool BStruct::Resolve()
 	if ( BStruct::read != m_action ) return false;
 	char name[257];//字段名最大256byte+'\0'257byte
 	unsigned short namesize;
-	if ( !m_stream.GetData(&namesize) ) return false;
 	namesize = 256;//设置GetData()最大读取256byte
 	while ( !m_stream.IsEnd() )
 	{
