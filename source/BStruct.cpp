@@ -16,15 +16,6 @@ BStruct::BStruct()
 	m_error.m_data = NULL;
 	m_error.m_size = 0;
 	m_error.m_parent = NULL;
-
-	int i = 0;
-	for ( i = 0; i < 256; i++ )
-	{
-		m_dataList[i].m_parent = this;
-		m_dataList[i].m_size = 0;
-		m_dataList[i].m_data = NULL;
-	}
-	m_pos = 0;
 	m_finished = true;
 	m_action = BStruct::unknow;
 	m_bValid = false;
@@ -36,7 +27,6 @@ BStruct::~BStruct()
 
 void BStruct::Bind(unsigned char *pBuffer, unsigned int uSize)
 {
-	m_pos = 0;
 	m_dataMap.clear();
 	if ( NULL == pBuffer || 0 >= uSize ) return;
 	m_stream.Bind(pBuffer, uSize);
@@ -66,24 +56,34 @@ unsigned int BStruct::PreSize()
 	return m_stream.GetSize() - sizeof(unsigned short) - m_stream.Pos();
 }
 
-M_VALUE& BStruct::operator []( string key )
+M_VALUE BStruct::operator []( string key )
 {
 	if ( BStruct::unknow == m_action ||  "" == key ) return m_error;
-	map<std::string, M_VALUE*>::iterator it = m_dataMap.find( key );
+	map<std::string, char*>::iterator it = m_dataMap.find( key );
+	M_VALUE data;
+	data.m_parent = this;
 	if ( it == m_dataMap.end() ) 
 	{
 		if ( BStruct::write != m_action ) return m_error;
 		if ( !m_finished ) return m_error;
 		if ( !m_stream.AddData( (void*)key.c_str(), key.length() ) ) return m_error;
-		pair<map<std::string, M_VALUE*>::iterator, bool> ret = m_dataMap.insert(map<std::string, M_VALUE*>::value_type(key,&m_dataList[m_pos]));
+		data.m_data = (char*)(&m_stream.GetStream()[m_stream.Pos()]);//指向字段首地址
+		pair<map<std::string, char*>::iterator, bool> ret = 
+			m_dataMap.insert(map<std::string, char*>::value_type(key,data.m_data));
 		if ( !ret.second ) return m_error;
-		m_dataList[m_pos].m_size = 0;
-		m_dataList[m_pos].m_data = (char*)(&m_stream.GetStream()[m_stream.Pos()]);
+		data.m_size = 0;
+		data.m_data += sizeof(unsigned short);//指向数据首地址
 		m_finished = false;
-		m_pos++;
-		return *(ret.first->second);
+		return data;
 	}
-	return *(it->second);
+	data.m_data = it->second;
+	if ( BStruct::read == m_action || (BStruct::write == m_action && m_finished) )
+	{
+		data.m_size = memtoi((unsigned char*)data.m_data, sizeof(unsigned short));
+	}
+	else data.m_size = 0;
+	data.m_data += sizeof(unsigned short);//指向数据首地址
+	return data;
 }
 
 bool BStruct::IsValid()
@@ -93,7 +93,6 @@ bool BStruct::IsValid()
 
 bool BStruct::Resolve(unsigned char *pBuffer, unsigned int uSize)
 {
-	m_pos = 0;
 	m_dataMap.clear();
 	m_bValid = false;
 	if ( NULL == pBuffer || 0 >= uSize ) return false;
@@ -108,21 +107,18 @@ bool BStruct::Resolve()
 	char name[257];//字段名最大256byte+'\0'257byte
 	unsigned short namesize;
 	namesize = 256;//设置GetData()最大读取256byte
+	char *value;
+	unsigned short size;
 	while ( !m_stream.IsEnd() )
 	{
 		if ( !m_stream.GetData( name, &namesize ) ) return false;
-		m_dataList[m_pos].m_data = (char*)m_stream.GetPointer(&m_dataList[m_pos].m_size);
-		if ( NULL == m_dataList[m_pos].m_data ) return false;
+		value = (char*)m_stream.GetPointer(&size);//取得数据首地址
+		if ( NULL == value ) return false;
+		value = value - sizeof(unsigned short);//指向字段首地址
 		name[namesize] = 0;
-		pair<map<std::string, M_VALUE*>::iterator, bool> ret = 
-			m_dataMap.insert(map<string, M_VALUE*>::value_type(name,&m_dataList[m_pos]));
-		if ( !ret.second )//重名成员 
-		{
-			m_dataList[m_pos].m_size = 0;
-			return false;
-		}
-		
-		m_pos++;
+		pair<map<std::string, char*>::iterator, bool> ret = 
+			m_dataMap.insert(map<string, char*>::value_type(name,value));
+		if ( !ret.second ) return false;//重名成员 
 		namesize = 256;//设置GetData()最大读取256byte
 	}
 	m_bValid = true;
@@ -139,7 +135,6 @@ bool M_VALUE::operator = ( char* value )
 	{
 		if ( !m_parent->m_stream.AddData( value, vLen ) ) return false;
 		m_size = vLen;
-		m_data = &m_data[2];
 		m_parent->m_finished = true;
 		return true;
 	}
@@ -149,13 +144,12 @@ bool M_VALUE::operator = ( char* value )
 }
 
 bool M_VALUE::operator = ( char value )
-{	
+{
 	if ( NULL == m_data ) return false;
 	if ( 0 >= m_size ) 
 	{
 		if ( !m_parent->m_stream.AddData( &value, sizeof(char) ) ) return false;
 		m_size = sizeof(char);
-		m_data = &m_data[2];
 		m_parent->m_finished = true;
 		return true;
 	}
@@ -173,7 +167,6 @@ bool M_VALUE::operator = ( short value )
 	{
 		m_size = sizeof(short);
 		if ( !m_parent->m_stream.AddData( buf, m_size ) ) return false;
-		m_data = &m_data[2];
 		m_parent->m_finished = true;
 		return true;
 	}
@@ -189,7 +182,6 @@ bool M_VALUE::operator = ( float value )
 	{
 		if ( !m_parent->m_stream.AddData( &value, sizeof(float) ) ) return false;
 		m_size = sizeof(float);
-		m_data = &m_data[2];
 		m_parent->m_finished = true;
 		return true;
 	}
@@ -205,7 +197,6 @@ bool M_VALUE::operator = ( double value )
 	{
 		if ( !m_parent->m_stream.AddData( &value, sizeof(double) ) ) return false;
 		m_size = sizeof(double);
-		m_data = &m_data[2];
 		m_parent->m_finished = true;
 		return true;
 	}
@@ -223,7 +214,6 @@ bool M_VALUE::operator = ( long value )
 	{
 		m_size = sizeof(long);
 		if ( !m_parent->m_stream.AddData( buf, m_size ) ) return false;
-		m_data = &m_data[2];
 		m_parent->m_finished = true;
 		return true;
 	}
@@ -241,7 +231,6 @@ bool M_VALUE::operator = ( int32 value )
 	{
 		m_size = sizeof(int32);
 		if ( !m_parent->m_stream.AddData( buf, m_size ) ) return false;
-		m_data = &m_data[2];
 		m_parent->m_finished = true;
 		return true;
 	}
@@ -259,7 +248,6 @@ bool M_VALUE::operator = ( int64 value )
 	{
 		m_size = sizeof(int64);
 		if ( !m_parent->m_stream.AddData( buf, m_size ) ) return false;
-		m_data = &m_data[2];
 		m_parent->m_finished = true;
 		return true;
 	}
@@ -277,7 +265,6 @@ bool M_VALUE::operator = ( BStruct value )
 	{
 		if ( !m_parent->m_stream.AddData( pStream, value.GetSize() ) ) return false;
 		m_size = value.GetSize();
-		m_data = &m_data[2];
 		m_parent->m_finished = true;
 		return true;
 	}
@@ -293,7 +280,6 @@ bool M_VALUE::SetValue( const void *value, unsigned short uSize )
 	{
 		if ( !m_parent->m_stream.AddData( (unsigned char*)value, uSize ) ) return false;
 		m_size = uSize;
-		m_data = &m_data[2];
 		m_parent->m_finished = true;
 		return true;
 	}

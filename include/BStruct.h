@@ -244,7 +244,7 @@ public:
 	 *
 	 *		※3：没有调用Bind()，不可以赋制，否则触发assert断言
 	 */
-	M_VALUE& operator []( std::string name );
+	M_VALUE operator []( std::string name );
 	unsigned char* GetStream();//取得数据流
 	unsigned int GetSize();//取得数据流长度
 	/*
@@ -269,10 +269,8 @@ private:
 	bool Resolve();//解析绑定的数据流
 private:
 	Stream m_stream;
-	M_VALUE m_dataList[256];//报文最大支持256个成员
 	M_VALUE m_error;//操作失败时返回错误数据
-	unsigned int m_pos;
-	std::map<std::string, M_VALUE*> m_dataMap;
+	std::map<std::string, char*> m_dataMap;
 	bool m_finished;
 	action m_action;
 	bool m_bValid;
