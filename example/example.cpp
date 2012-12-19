@@ -1,5 +1,6 @@
 #include <cstdio>
-#include "BStruct.h"
+#include "../include/BStruct.h"
+#include "../include/BArray.h"
 using namespace std;
 
 int main()
@@ -7,7 +8,6 @@ int main()
 	unsigned char buf[256];
 	//构造一个结构化消息
 	bsp::BStruct p;
-	
 	p.Bind(buf,256);//与缓冲绑定，以后往结构里添加数据，都会到添加到buf末尾
 	bool b = p["1"] = "1";//往结构里添数据
 	b = p["2"] = (unsigned char)2;//往结构里添数据
@@ -22,6 +22,15 @@ int main()
 		int i;
 		short s;
 	};
+	bsp::BArray marray;
+	marray.Bind(p.PreBuffer( "20" ), p.PreSize());
+	marray[0] = "123";
+	bsp::BStruct estr;
+	estr.Bind(marray.PreBuffer(),marray.PreSize());
+	estr["999"] = 999;
+	estr["888"] = 888;
+	marray[1] = &estr;//BArray中嵌套BStruct
+	p["20"] = &marray;//BStruct中嵌套BArray
 	BSD sdasad;
 	sdasad.i = 123;
 	sdasad.s = 456;
@@ -35,7 +44,7 @@ int main()
 	obj["o1"] = 10;
 	obj["o2"] = "11";
 	obj["o3"] = 12;
-	p["10"] = obj;//往结构里嵌套结构
+	p["10"] = &obj;//往结构里嵌套结构
 	p["11"] = 13;
 	//将结构发送到网络，这里用memcpy到内存，模拟网络发送/接收
 	char msg[1024];
@@ -44,6 +53,7 @@ int main()
 	memcpy( &msg[2], p.GetStream(), 2 );//发送出去
 	nLen = bsp::memtoi((unsigned char*)msg, 2);
 	memcpy( msg, p.GetStream(), nLen );//发送出去
+	
 
 	//接收并解析结构
 	nLen = p.GetSize();//接收到结构大小
@@ -84,6 +94,16 @@ int main()
 	printf( "%s\n", str.c_str() );
 	printf( "%d\n", i32 );
 	printf( "%d\n", i11 );
+
+	bsp::BArray marrayr;
+	marrayr = p1["20"];
+	bsp::BStruct estrr = marrayr[1];
+	i = estrr["888"];
+	printf( "%d\n", i );
+	i = estrr["999"];
+	printf( "%d\n", i );
+	str = (string)marray[0];
+	printf( "%s\n", str.c_str() );
 	
 	return 0;
 }

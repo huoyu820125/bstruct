@@ -85,6 +85,10 @@ LIB32=link.exe -lib
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
+SOURCE=..\source\BArray.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\source\BStruct.cpp
 # End Source File
 # Begin Source File
@@ -95,6 +99,10 @@ SOURCE=..\source\Stream.cpp
 # Begin Group "Header Files"
 
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
+# Begin Source File
+
+SOURCE=..\include\BArray.h
+# End Source File
 # Begin Source File
 
 SOURCE=..\include\BStruct.h

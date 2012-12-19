@@ -3,6 +3,8 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "../include/BStruct.h"
+#include "../include/BArray.h"
+
 using namespace std;
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -256,25 +258,43 @@ bool M_VALUE::operator = ( int64 value )
 	return true;
 }
 
-bool M_VALUE::operator = ( BStruct value )
+bool M_VALUE::operator = ( BStruct *value )
 {
 	if ( NULL == m_data ) return false;
-	unsigned char *pStream = value.GetStream();
+	unsigned char *pStream = value->GetStream();
 	if ( NULL == pStream ) return false;
 	if ( 0 >= m_size ) 
 	{
-		if ( !m_parent->m_stream.AddData( pStream, value.GetSize() ) ) return false;
-		m_size = value.GetSize();
+		if ( !m_parent->m_stream.AddData( pStream, value->GetSize() ) ) return false;
+		m_size = value->GetSize();
 		m_parent->m_finished = true;
 		return true;
 	}
-	if ( m_size != value.GetSize() ) return false;
+	if ( m_size != value->GetSize() ) return false;
+	memcpy( m_data, pStream, m_size );
+	return true;
+}
+
+bool M_VALUE::operator = ( BArray *value )
+{
+	if ( NULL == m_data ) return false;
+	unsigned char *pStream = value->GetStream();
+	if ( NULL == pStream ) return false;
+	if ( 0 >= m_size ) 
+	{
+		if ( !m_parent->m_stream.AddData( pStream, value->GetSize() ) ) return false;
+		m_size = value->GetSize();
+		m_parent->m_finished = true;
+		return true;
+	}
+	if ( m_size != value->GetSize() ) return false;
 	memcpy( m_data, pStream, m_size );
 	return true;
 }
 
 bool M_VALUE::SetValue( const void *value, unsigned short uSize )
 {
+	if ( NULL == m_data ) return false;
 	if ( NULL == value || 0 >= uSize ) return false;
 	if ( 0 >= m_size ) 
 	{
@@ -352,6 +372,14 @@ M_VALUE::operator string()
 M_VALUE::operator BStruct()
 {
 	BStruct value;
+	if ( NULL == m_data ) return value;
+	value.Resolve((unsigned char*)m_data, m_size);
+	return value;
+}
+
+M_VALUE::operator BArray()
+{
+	BArray value;
 	if ( NULL == m_data ) return value;
 	value.Resolve((unsigned char*)m_data, m_size);
 	return value;

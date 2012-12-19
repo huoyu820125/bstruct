@@ -2,8 +2,8 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#ifndef PROTOCL_H
-#define PROTOCL_H
+#ifndef BSTRUCT_H
+#define BSTRUCT_H
 
 #include "Stream.h"
 #include <map>
@@ -122,6 +122,7 @@
 namespace bsp
 {
 
+class BArray;
 class BStruct;
 /*
  *	≥…‘±÷µ
@@ -199,8 +200,10 @@ public:
 	}
 
 	operator BStruct();
-	bool operator = ( BStruct value );
-	
+	bool operator = ( BStruct *value );
+	operator BArray();
+	bool operator = ( BArray *value );
+		
 private:
 	BStruct *m_parent;
 	friend class BStruct;
@@ -277,4 +280,4 @@ private:
 };
 
 }
-#endif // !defined(PROTOCL_H)
+#endif // !defined(BSTRUCT_H)
