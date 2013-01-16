@@ -2,6 +2,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
+#include <cstring>
 #include "../include/BStruct.h"
 #include "../include/BArray.h"
 
@@ -21,6 +22,7 @@ BStruct::BStruct()
 	m_finished = true;
 	m_action = BStruct::unknow;
 	m_bValid = false;
+	m_bEmpty = true;
 }
 
 BStruct::~BStruct()
@@ -81,10 +83,11 @@ M_VALUE BStruct::operator []( string key )
 	data.m_data = it->second;
 	if ( BStruct::read == m_action || (BStruct::write == m_action && m_finished) )
 	{
-		data.m_size = memtoi((unsigned char*)data.m_data, sizeof(unsigned short));
+		if ( NULL != data.m_data ) data.m_size = memtoi((unsigned char*)data.m_data, sizeof(unsigned short));
+		else data.m_size = 0;
 	}
 	else data.m_size = 0;
-	data.m_data += sizeof(unsigned short);//指向数据首地址
+	if ( 0 != data.m_size ) data.m_data += sizeof(unsigned short);//指向数据首地址
 	return data;
 }
 
@@ -93,11 +96,17 @@ bool BStruct::IsValid()
 	return m_bValid;
 }
 
+bool BStruct::IsEmpty()
+{
+	return m_bEmpty;
+}
+
 bool BStruct::Resolve(unsigned char *pBuffer, unsigned int uSize)
 {
 	m_dataMap.clear();
 	m_bValid = false;
-	if ( NULL == pBuffer || 0 >= uSize ) return false;
+	m_bEmpty = true;
+	if ( NULL == pBuffer || 0 > uSize ) return false;
 	m_stream.Bind(pBuffer, uSize);
 	m_action = BStruct::read;
 	return Resolve();
@@ -115,13 +124,14 @@ bool BStruct::Resolve()
 	{
 		if ( !m_stream.GetData( name, &namesize ) ) return false;
 		value = (char*)m_stream.GetPointer(&size);//取得数据首地址
-		if ( NULL == value ) return false;
-		value = value - sizeof(unsigned short);//指向字段首地址
+		if ( NULL == value && 0 != size ) return false;
+		if ( NULL != value ) value = value - sizeof(unsigned short);//指向字段首地址
 		name[namesize] = 0;
 		pair<map<std::string, char*>::iterator, bool> ret = 
 			m_dataMap.insert(map<string, char*>::value_type(name,value));
 		if ( !ret.second ) return false;//重名成员 
 		namesize = 256;//设置GetData()最大读取256byte
+		m_bEmpty = false;
 	}
 	m_bValid = true;
 	return true;
@@ -312,7 +322,8 @@ bool M_VALUE::SetValue( const void *value, unsigned short uSize )
 //取值操作
 bool M_VALUE::IsValid()
 {
-	return NULL != m_data;
+	if ( NULL == m_parent ) return false;
+	return true;
 }
 
 M_VALUE::operator char()
@@ -372,7 +383,7 @@ M_VALUE::operator string()
 M_VALUE::operator BStruct()
 {
 	BStruct value;
-	if ( NULL == m_data ) return value;
+	if ( !IsValid() ) return value;
 	value.Resolve((unsigned char*)m_data, m_size);
 	return value;
 }
@@ -380,7 +391,7 @@ M_VALUE::operator BStruct()
 M_VALUE::operator BArray()
 {
 	BArray value;
-	if ( NULL == m_data ) return value;
+	if ( !IsValid() ) return value;
 	value.Resolve((unsigned char*)m_data, m_size);
 	return value;
 }

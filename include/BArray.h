@@ -201,6 +201,7 @@ public:
 	unsigned char* PreBuffer();
 	unsigned int PreSize();//准备的缓冲的容量
 	bool IsValid();//有效返回true,无效返回false
+	bool IsEmpty();//空返回true
 private:
 	bool Resolve();//解析绑定的数据流
 private:
@@ -210,6 +211,7 @@ private:
 	bool m_finished;
 	action m_action;
 	bool m_bValid;
+	bool m_bEmpty;
 	unsigned short m_elementSize;
 };
 

@@ -2,6 +2,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
+#include <cstring>
 #include "../include/BArray.h"
 #include "../include/BStruct.h"
 using namespace std;
@@ -20,6 +21,7 @@ BArray::BArray()
 	m_finished = true;
 	m_action = BArray::unknow;
 	m_bValid = false;
+	m_bEmpty = true;
 	m_elementSize = 0;
 }
 
@@ -97,9 +99,10 @@ E_VALUE BArray::operator []( int index )
 	{
 		if ( BArray::read == m_action || (BArray::write == m_action && m_finished) )
 		{
-			data.m_size = memtoi((unsigned char*)data.m_data, sizeof(unsigned short));
+			if ( NULL != data.m_data ) data.m_size = memtoi((unsigned char*)data.m_data, sizeof(unsigned short));
+			else data.m_size = 0;
 		}
-		data.m_data += sizeof(unsigned short);//指向数据首地址
+		if ( 0 != data.m_size ) data.m_data += sizeof(unsigned short);//指向数据首地址
 	}
 	else data.m_size = m_elementSize;
 	return data;
@@ -110,10 +113,16 @@ bool BArray::IsValid()
 	return m_bValid;
 }
 
+bool BArray::IsEmpty()
+{
+	return m_bEmpty;
+}
+
 bool BArray::Resolve(unsigned char *pBuffer, unsigned int uSize)
 {
 	m_data.clear();
 	m_bValid = false;
+	m_bEmpty = true;
 	if ( NULL == pBuffer || 0 >= uSize ) return false;
 	m_stream.Bind(pBuffer, uSize);
 	m_action = BArray::read;
@@ -131,9 +140,10 @@ bool BArray::Resolve()
 		while ( !m_stream.IsEnd() )
 		{
 			value = (char*)m_stream.GetPointer(&size);//取得数据首地址
-			if ( NULL == value ) return false;
-			value = value - sizeof(unsigned short);//指向字段首地址
+			if ( NULL == value && 0 != size ) return false;
+			if ( NULL != value ) value = value - sizeof(unsigned short);//指向字段首地址
 			m_data.push_back(value);
+			m_bEmpty = false;
 		}
 	}
 	else //定长元素，元素编码格式为：byte[]
@@ -147,6 +157,7 @@ bool BArray::Resolve()
 			value = &buf[pos];//取得字段（对于定长模式即数据）首地址
 			m_data.push_back(value);
 			pos += m_elementSize;
+			m_bEmpty = false;
 		}
 	}
 	m_bValid = true;
@@ -157,7 +168,8 @@ bool BArray::Resolve()
 //取值操作
 bool E_VALUE::IsValid()
 {
-	return NULL != m_data;
+	if ( NULL == m_parent ) return false;
+	return true;
 }
 
 E_VALUE::operator char()
@@ -217,7 +229,7 @@ E_VALUE::operator string()
 E_VALUE::operator BArray()
 {
 	BArray value;
-	if ( NULL == m_data ) return value;
+	if ( !IsValid() ) return value;
 	value.Resolve((unsigned char*)m_data, m_size);
 	return value;
 }
@@ -225,7 +237,7 @@ E_VALUE::operator BArray()
 E_VALUE::operator BStruct()
 {
 	BStruct value;
-	if ( NULL == m_data ) return value;
+	if ( !IsValid() ) return value;
 	value.Resolve((unsigned char*)m_data, m_size);
 	return value;
 }
