@@ -43,9 +43,11 @@
  *	string str = msg[1];//取得192.168.0.1
  *	short port = msg[2];//取得8888
 */
+
+
 namespace bsp
 {
-
+	
 class BArray;
 class BStruct;
 /*
@@ -92,16 +94,16 @@ public:
 	bool operator = ( float value );
 	operator double();
 	bool operator = ( double value );
-	operator long();
-	operator unsigned long()
-	{
-		return (long)*this;
-	}
-	bool operator = ( long value );
-	bool operator = ( unsigned long value )
-	{
-		return *this = (long)value;
-	}
+//	operator long();
+//	operator unsigned long()
+//	{
+//		return (long)*this;
+//	}
+//	bool operator = ( long value );
+//	bool operator = ( unsigned long value )
+//	{
+//		return *this = (long)value;
+//	}
 	operator int32();
 	operator uint32()
 	{

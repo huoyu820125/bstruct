@@ -98,15 +98,15 @@ bool Stream::AddData(double value)
 	return true;
 }
 
-bool Stream::AddData( long value )
-{
-	if ( m_uPos + sizeof(long) > m_uSize ) return false;
-	itomem(&m_pMsgBuffer[m_uPos], value, sizeof(long));
-	m_uPos += sizeof(long);
-	
-	return true;
-}
-
+//bool Stream::AddData( long value )
+//{
+//	if ( m_uPos + sizeof(long) > m_uSize ) return false;
+//	itomem(&m_pMsgBuffer[m_uPos], value, sizeof(long));
+//	m_uPos += sizeof(long);
+//	
+//	return true;
+//}
+//
 bool Stream::AddData( int32 value )
 {
 	if ( m_uPos + sizeof(int32) > m_uSize ) return false;
@@ -180,15 +180,15 @@ bool Stream::GetData(double *value)
 	return true;
 }
 
-bool Stream::GetData( long *value )
-{
-	if ( m_uPos + sizeof(long) > m_uSize ) return false;
-	*value = (long)memtoi(&m_pMsgBuffer[m_uPos], sizeof(long));
-	m_uPos += sizeof(long);
-	
-	return true;
-}
-
+//bool Stream::GetData( long *value )
+//{
+//	if ( m_uPos + sizeof(long) > m_uSize ) return false;
+//	*value = (long)memtoi(&m_pMsgBuffer[m_uPos], sizeof(long));
+//	m_uPos += sizeof(long);
+//	
+//	return true;
+//}
+//
 bool Stream::GetData( int32 *value )
 {
 	if ( m_uPos + sizeof(int32) > m_uSize ) return false;

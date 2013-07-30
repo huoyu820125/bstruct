@@ -62,11 +62,11 @@ public:
 	}
 	bool AddData(float value);
 	bool AddData(double value);
-	bool AddData(long value);
-	inline bool AddData( unsigned long value )
-	{
-		return AddData( (long)value );
-	}
+//	bool AddData(long value);
+//	inline bool AddData( unsigned long value )
+//	{
+//		return AddData( (long)value );
+//	}
 	bool AddData(int32 value);
 	inline bool AddData( uint32 value )
 	{
@@ -108,11 +108,11 @@ public:
 	}
 	bool GetData(float *value);
 	bool GetData(double *value);
-	bool GetData(long *value);
-	inline bool GetData(unsigned long *value)
-	{
-		return GetData((long*) value);
-	}
+//	bool GetData(long *value);
+//	inline bool GetData(unsigned long *value)
+//	{
+//		return GetData((long*) value);
+//	}
 	bool GetData(int32 *value);
 	inline bool GetData(uint32 *value)
 	{

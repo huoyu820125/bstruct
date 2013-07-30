@@ -200,12 +200,12 @@ E_VALUE::operator double()
 	return value;
 }
 
-E_VALUE::operator long()
-{
-	if ( NULL == m_data || m_size != sizeof(long) ) return 0xffffffff;
-	return(long)memtoi( (unsigned char*)m_data, m_size );
-}
-
+//E_VALUE::operator long()
+//{
+//	if ( NULL == m_data || m_size != sizeof(long) ) return 0xffffffff;
+//	return(long)memtoi( (unsigned char*)m_data, m_size );
+//}
+//
 E_VALUE::operator int32()
 {
 	if ( NULL == m_data || m_size != sizeof(int32) ) return 0xffffffff;
@@ -321,21 +321,21 @@ bool E_VALUE::operator = ( double value )
 	return true;
 }
 
-bool E_VALUE::operator = ( long value )
-{
-	if ( NULL == m_data ) return false;
-	if ( sizeof(long) != m_parent->m_elementSize ) return false;//元素长度与期望保存的元素长度不符合
-	if ( 0 == m_size )
-	{
-		m_parent->m_stream.AddData(value);
-		m_size = sizeof(long);
-		m_parent->m_finished = true;
-		return true;
-	}
-	itomem((unsigned char*)m_data,value,m_size);
-	return true;
-}
-
+//bool E_VALUE::operator = ( long value )
+//{
+//	if ( NULL == m_data ) return false;
+//	if ( sizeof(long) != m_parent->m_elementSize ) return false;//元素长度与期望保存的元素长度不符合
+//	if ( 0 == m_size )
+//	{
+//		m_parent->m_stream.AddData(value);
+//		m_size = sizeof(long);
+//		m_parent->m_finished = true;
+//		return true;
+//	}
+//	itomem((unsigned char*)m_data,value,m_size);
+//	return true;
+//}
+//
 bool E_VALUE::operator = ( int32 value )
 {
 	if ( NULL == m_data ) return false;

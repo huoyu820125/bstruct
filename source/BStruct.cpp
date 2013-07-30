@@ -217,23 +217,23 @@ bool M_VALUE::operator = ( double value )
 	return true;
 }
 
-bool M_VALUE::operator = ( long value )
-{
-	if ( NULL == m_data ) return false;
-	unsigned char buf[sizeof(long)];
-	itomem(buf,value,sizeof(long));
-	if ( 0 >= m_size ) 
-	{
-		m_size = sizeof(long);
-		if ( !m_parent->m_stream.AddData( buf, m_size ) ) return false;
-		m_parent->m_finished = true;
-		return true;
-	}
-	if ( m_size != sizeof(long) ) return false;
-	memcpy( m_data, buf, m_size );
-	return true;
-}
-
+//bool M_VALUE::operator = ( long value )
+//{
+//	if ( NULL == m_data ) return false;
+//	unsigned char buf[sizeof(long)];
+//	itomem(buf,value,sizeof(long));
+//	if ( 0 >= m_size ) 
+//	{
+//		m_size = sizeof(long);
+//		if ( !m_parent->m_stream.AddData( buf, m_size ) ) return false;
+//		m_parent->m_finished = true;
+//		return true;
+//	}
+//	if ( m_size != sizeof(long) ) return false;
+//	memcpy( m_data, buf, m_size );
+//	return true;
+//}
+//
 bool M_VALUE::operator = ( int32 value )
 {
 	if ( NULL == m_data ) return false;
@@ -354,12 +354,12 @@ M_VALUE::operator double()
 	return value;
 }
 
-M_VALUE::operator long()
-{
-	if ( NULL == m_data || m_size != sizeof(long) ) return 0xffffffff;
-	return(long)memtoi( (unsigned char*)m_data, m_size );
-}
-
+//M_VALUE::operator long()
+//{
+//	if ( NULL == m_data || m_size != sizeof(long) ) return 0xffffffff;
+//	return(long)memtoi( (unsigned char*)m_data, m_size );
+//}
+//
 M_VALUE::operator int32()
 {
 	if ( NULL == m_data || m_size != sizeof(int32) ) return 0xffffffff;

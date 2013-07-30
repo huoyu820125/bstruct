@@ -8,7 +8,6 @@
 #include "Stream.h"
 #include <map>
 #include <string>
-
 /*
  *  二进制结构
  *	是将二进制数据结构化的保存在数据流中的通信协议
@@ -168,16 +167,16 @@ public:
 	bool operator = ( float value );
 	operator double();
 	bool operator = ( double value );
-	operator long();
-	operator unsigned long()
-	{
-		return (long)*this;
-	}
-	bool operator = ( long value );
-	bool operator = ( unsigned long value )
-	{
-		return *this = (long)value;
-	}
+//	operator long();
+//	operator unsigned long()
+//	{
+//		return (long)*this;
+//	}
+//	bool operator = ( long value );
+//	bool operator = ( unsigned long value )
+//	{
+//		return *this = (long)value;
+//	}
 	operator int32();
 	operator uint32()
 	{
