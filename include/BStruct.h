@@ -128,6 +128,9 @@ class BStruct;
  */
 struct M_VALUE
 {
+	char *m_header;//成员首地址
+	char *m_name;//成员name地址
+	unsigned short m_nameSize;//成员name长度
 	char *m_data;//成员的值的地址，对于struct，byte流等对象就是对象地址
 	unsigned short m_size;//成员长度，对于struct，byte流等对象就是对象大小
 public:
@@ -220,9 +223,12 @@ private:
 	friend struct M_VALUE;
 public:
 	BStruct();
+	BStruct( const char* name );
 	virtual ~BStruct();
 
 public:
+	const char* Name();
+	void SetName( const char* name );
 	void Bind(unsigned char *pBuffer, unsigned int uSize);//绑定缓冲,用户填充
 	//解析数据流，解析后使用[]操作符直接取出对应成员结果
 	bool Resolve(unsigned char *pBuffer, unsigned int uSize);
@@ -271,6 +277,7 @@ public:
 private:
 	bool Resolve();//解析绑定的数据流
 private:
+	char m_name[256];
 	Stream m_stream;
 	M_VALUE m_error;//操作失败时返回错误数据
 	std::map<std::string, char*> m_dataMap;

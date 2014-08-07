@@ -16,6 +16,19 @@ namespace bsp
 
 BStruct::BStruct()
 {
+	SetName( "BStruct" );
+	m_error.m_data = NULL;
+	m_error.m_size = 0;
+	m_error.m_parent = NULL;
+	m_finished = true;
+	m_action = BStruct::unknow;
+	m_bValid = false;
+	m_bEmpty = true;
+}
+
+BStruct::BStruct( const char* name )
+{
+	SetName(name);
 	m_error.m_data = NULL;
 	m_error.m_size = 0;
 	m_error.m_parent = NULL;
@@ -27,6 +40,16 @@ BStruct::BStruct()
 
 BStruct::~BStruct()
 {
+}
+
+void BStruct::SetName( const char* name )
+{
+	strcpy(m_name, name);
+}
+
+const char* BStruct::Name()
+{
+	return m_name;
 }
 
 void BStruct::Bind(unsigned char *pBuffer, unsigned int uSize)
@@ -66,21 +89,28 @@ M_VALUE BStruct::operator []( string key )
 	map<std::string, char*>::iterator it = m_dataMap.find( key );
 	M_VALUE data;
 	data.m_parent = this;
+	data.m_nameSize = 0;
 	if ( it == m_dataMap.end() ) 
 	{
 		if ( BStruct::write != m_action ) return m_error;
 		if ( !m_finished ) return m_error;
+		data.m_header = (char*)&m_stream.GetStream()[m_stream.GetSize()];
+		data.m_name = (data.m_header + sizeof(short));
+		data.m_nameSize = memtoi( (unsigned char*)data.m_header, sizeof(short) );
 		if ( !m_stream.AddData( (void*)key.c_str(), key.length() ) ) return m_error;
 		data.m_data = (char*)(&m_stream.GetStream()[m_stream.Pos()]);//指向字段首地址
 		pair<map<std::string, char*>::iterator, bool> ret = 
-			m_dataMap.insert(map<std::string, char*>::value_type(key,data.m_data));
+			m_dataMap.insert(map<std::string, char*>::value_type(key,data.m_header));
 		if ( !ret.second ) return m_error;
 		data.m_size = 0;
 		data.m_data += sizeof(unsigned short);//指向数据首地址
 		m_finished = false;
 		return data;
 	}
-	data.m_data = it->second;
+	data.m_header = it->second;
+	data.m_name = data.m_header + sizeof(short);
+	data.m_nameSize = memtoi( (unsigned char*)data.m_header, sizeof(short) );
+	data.m_data = data.m_name + data.m_nameSize;
 	if ( BStruct::read == m_action || (BStruct::write == m_action && m_finished) )
 	{
 		if ( NULL != data.m_data ) data.m_size = memtoi((unsigned char*)data.m_data, sizeof(unsigned short));
@@ -120,15 +150,17 @@ bool BStruct::Resolve()
 	namesize = 256;//设置GetData()最大读取256byte
 	char *value;
 	unsigned short size;
+	char *header;
 	while ( !m_stream.IsEnd() )
 	{
+		header = (char*)&m_stream.GetStream()[m_stream.Pos()];
 		if ( !m_stream.GetData( name, &namesize ) ) return false;
 		value = (char*)m_stream.GetPointer(&size);//取得数据首地址
 		if ( NULL == value && 0 != size ) return false;
 		if ( NULL != value ) value = value - sizeof(unsigned short);//指向字段首地址
 		name[namesize] = 0;
 		pair<map<std::string, char*>::iterator, bool> ret = 
-			m_dataMap.insert(map<string, char*>::value_type(name,value));
+			m_dataMap.insert(map<string, char*>::value_type(name,header));
 		if ( !ret.second ) return false;//重名成员 
 		namesize = 256;//设置GetData()最大读取256byte
 		m_bEmpty = false;
@@ -328,19 +360,46 @@ bool M_VALUE::IsValid()
 
 M_VALUE::operator char()
 {
-	if ( NULL == m_data || m_size != sizeof(char) ) return (char)0xff;
+	if ( NULL == m_data || m_size != sizeof(char) ) 
+	{
+		char key[256];
+		int i = 0;
+		key[0] = 0;
+		for ( i = 0; i < m_nameSize; i++ ) key[i] = m_name[i];
+		key[i] = '\0';
+		printf( "%s[%s] size is %d byte cannot convert to char\n", m_parent->Name(), key, m_size );
+		return (char)0xff;
+	}
 	return (char)m_data[0];
 }
 
 M_VALUE::operator short()
 {
-	if ( NULL == m_data || m_size != sizeof(short) ) return (short)0xffff;
+	if ( NULL == m_data || m_size != sizeof(short) )
+	{
+		char key[256];
+		int i = 0;
+		key[0] = 0;
+		for ( i = 0; i < m_nameSize; i++ ) key[i] = m_name[i];
+		key[i] = '\0';
+		printf( "%s[%s] size is %d byte cannot convert to short\n", m_parent->Name(), key, m_size );
+		return (short)0xffff;
+	}
 	return (short)memtoi( (unsigned char*)m_data, m_size );
 }
 
 M_VALUE::operator float()
 {
-	if ( NULL == m_data || m_size != sizeof(float) ) return (float)0xffffffff;
+	if ( NULL == m_data || m_size != sizeof(float) ) 
+	{
+		char key[256];
+		int i = 0;
+		key[0] = 0;
+		for ( i = 0; i < m_nameSize; i++ ) key[i] = m_name[i];
+		key[i] = '\0';
+		printf( "%s[%s] size is %d byte cannot convert to float\n", m_parent->Name(), key, m_size );
+		return (float)0xffffffff;
+	}
 	float value;
 	memcpy( &value, m_data, m_size );
 	return value;
@@ -348,7 +407,16 @@ M_VALUE::operator float()
 
 M_VALUE::operator double()
 {
-	if ( NULL == m_data || m_size != sizeof(double) ) return 0xffffffff;
+	if ( NULL == m_data || m_size != sizeof(double) )
+	{
+		char key[256];
+		int i = 0;
+		key[0] = 0;
+		for ( i = 0; i < m_nameSize; i++ ) key[i] = m_name[i];
+		key[i] = '\0';
+		printf( "%s[%s] size is %d byte cannot convert to double\n", m_parent->Name(), key, m_size );
+		return (double)0xffffffff;
+	}
 	double value;
 	memcpy( &value, m_data, m_size );
 	return value;
@@ -362,19 +430,46 @@ M_VALUE::operator double()
 //
 M_VALUE::operator int32()
 {
-	if ( NULL == m_data || m_size != sizeof(int32) ) return 0xffffffff;
+	if ( NULL == m_data || m_size != sizeof(int32) )
+	{
+		char key[256];
+		int i = 0;
+		key[0] = 0;
+		for ( i = 0; i < m_nameSize; i++ ) key[i] = m_name[i];
+		key[i] = '\0';
+		printf( "%s[%s] size is %d byte cannot convert to int32\n", m_parent->Name(), key, m_size );
+		return (int32)0xffffffff;
+	}
 	return (int32)memtoi( (unsigned char*)m_data, m_size );
 }
 
 M_VALUE::operator int64()
 {
-	if ( NULL == m_data || m_size != sizeof(int64) ) return 0xffffffff;
+	if ( NULL == m_data || m_size != sizeof(int64) ) 
+	{
+		char key[256];
+		int i = 0;
+		key[0] = 0;
+		for ( i = 0; i < m_nameSize; i++ ) key[i] = m_name[i];
+		key[i] = '\0';
+		printf( "%s[%s] size is %d byte cannot convert to int64\n", m_parent->Name(), key, m_size );
+		return (int64)0xffffffff;
+	}
 	return memtoi( (unsigned char*)m_data, m_size );
 }
 
 M_VALUE::operator string()
 {
-	if ( NULL == m_data ) return "";
+	if ( NULL == m_data ) 
+	{
+		char key[256];
+		int i = 0;
+		key[0] = 0;
+		for ( i = 0; i < m_nameSize; i++ ) key[i] = m_name[i];
+		key[i] = '\0';
+		printf( "%s[%s] is NULL cannot convert to string\n", m_parent->Name(), key );
+		return "";
+	}
 	string value;
 	value.assign(m_data, m_size);
 	return value;
@@ -383,16 +478,44 @@ M_VALUE::operator string()
 M_VALUE::operator BStruct()
 {
 	BStruct value;
+	char key[256];
+	int i = 0;
+	key[0] = 0;
+	for ( i = 0; i < m_nameSize; i++ ) key[i] = m_name[i];
+	key[i] = '\0';
+
+	char name[256];
+	sprintf( name, "%s[%s]", m_parent->Name(), key );
+	value.SetName( name );
+
 	if ( !IsValid() ) return value;
-	value.Resolve((unsigned char*)m_data, m_size);
+	if ( !value.Resolve((unsigned char*)m_data, m_size) )
+	{
+		printf( "%s cannot convert to BStruct\n", name );
+		return value;
+	}
 	return value;
 }
 
 M_VALUE::operator BArray()
 {
 	BArray value;
+	char key[256];
+	int i = 0;
+	key[0] = 0;
+	for ( i = 0; i < m_nameSize; i++ ) key[i] = m_name[i];
+	key[i] = '\0';
+
+	char name[256];
+	sprintf( name, "%s[%s]", m_parent->Name(), key );
+	value.SetName( name );
+
 	if ( !IsValid() ) return value;
-	value.Resolve((unsigned char*)m_data, m_size);
+	if ( !value.Resolve((unsigned char*)m_data, m_size) )
+	{
+		printf( "%s cannot convert to BArray\n", name );
+		return value;
+	}
 	return value;
 }
 

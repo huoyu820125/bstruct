@@ -15,6 +15,20 @@ namespace bsp
 
 BArray::BArray()
 {
+	SetName( "BArray" );
+	m_error.m_data = NULL;
+	m_error.m_size = 0;
+	m_error.m_parent = NULL;
+	m_finished = true;
+	m_action = BArray::unknow;
+	m_bValid = false;
+	m_bEmpty = true;
+	m_elementSize = 0;
+}
+
+BArray::BArray( const char* name )
+{
+	SetName( name );
 	m_error.m_data = NULL;
 	m_error.m_size = 0;
 	m_error.m_parent = NULL;
@@ -27,6 +41,16 @@ BArray::BArray()
 
 BArray::~BArray()
 {
+}
+
+void BArray::SetName( const char* name )
+{
+	strcpy(m_name, name);
+}
+
+const char* BArray::Name()
+{
+	return m_name;
 }
 
 void BArray::SetElementSize(unsigned short size)
@@ -81,6 +105,7 @@ E_VALUE BArray::operator []( int index )
 {
 	if ( BArray::unknow == m_action ) return m_error;
 	E_VALUE data;
+	data.m_index = index;
 	data.m_parent = this;
 	if ( index >= m_data.size() )
 	{
@@ -174,19 +199,31 @@ bool E_VALUE::IsValid()
 
 E_VALUE::operator char()
 {
-	if ( NULL == m_data || m_size != sizeof(char) ) return (char)0xff;
+	if ( NULL == m_data || m_size != sizeof(char) ) 
+	{
+		printf( "%s[%d] is %d byte cannot convert to char\n", m_parent->Name(), m_index, m_size );
+		return (char)0x000000ff;
+	}
 	return (char)m_data[0];
 }
 
 E_VALUE::operator short()
 {
-	if ( NULL == m_data || m_size != sizeof(short) ) return (short)0xffff;
+	if ( NULL == m_data || m_size != sizeof(short) ) 
+	{
+		printf( "%s[%d] is %d byte cannot convert to short\n", m_parent->Name(), m_index, m_size );
+		return (short)0x0000ffff;
+	}
 	return (short)memtoi( (unsigned char*)m_data, m_size );
 }
 
 E_VALUE::operator float()
 {
-	if ( NULL == m_data || m_size != sizeof(float) ) return (float)0xffffffff;
+	if ( NULL == m_data || m_size != sizeof(float) )
+	{
+		printf( "%s[%d] is %d byte cannot convert to float\n", m_parent->Name(), m_index, m_size );
+		return (float)0xffffffff;
+	}
 	float value;
 	memcpy( &value, m_data, m_size );
 	return value;
@@ -194,7 +231,11 @@ E_VALUE::operator float()
 
 E_VALUE::operator double()
 {
-	if ( NULL == m_data || m_size != sizeof(double) ) return 0xffffffff;
+	if ( NULL == m_data || m_size != sizeof(double) )
+	{
+		printf( "%s[%d] is %d byte cannot convert to double\n", m_parent->Name(), m_index, m_size );
+		return 0xffffffff;
+	}
 	double value;
 	memcpy( &value, m_data, m_size );
 	return value;
@@ -208,13 +249,21 @@ E_VALUE::operator double()
 //
 E_VALUE::operator int32()
 {
-	if ( NULL == m_data || m_size != sizeof(int32) ) return 0xffffffff;
+	if ( NULL == m_data || m_size != sizeof(int32) )
+	{
+		printf( "%s[%d] is %d byte cannot convert to int32\n", m_parent->Name(), m_index, m_size );
+		return 0xffffffff;
+	}
 	return (int32)memtoi( (unsigned char*)m_data, m_size );
 }
 
 E_VALUE::operator int64()
 {
-	if ( NULL == m_data || m_size != sizeof(int64) ) return 0xffffffff;
+	if ( NULL == m_data || m_size != sizeof(int64) )
+	{
+		printf( "%s[%d] is %d byte cannot convert to int64\n", m_parent->Name(), m_index, m_size );
+		return 0xffffffff;
+	}
 	return memtoi( (unsigned char*)m_data, m_size );
 }
 
@@ -229,16 +278,32 @@ E_VALUE::operator string()
 E_VALUE::operator BArray()
 {
 	BArray value;
+	char name[256];
+	sprintf( name, "%s[%d]", m_parent->Name(), m_index );
+	value.SetName( name );
+
 	if ( !IsValid() ) return value;
-	value.Resolve((unsigned char*)m_data, m_size);
+	if ( !value.Resolve((unsigned char*)m_data, m_size) )
+	{
+		printf( "%s[%d] is %d byte cannot convert to BArray\n", m_parent->Name(), m_index, m_size );
+		return value;
+	}
 	return value;
 }
 
 E_VALUE::operator BStruct()
 {
 	BStruct value;
+	char name[256];
+	sprintf( name, "%s[%d]", m_parent->Name(), m_index );
+	value.SetName( name );
+
 	if ( !IsValid() ) return value;
-	value.Resolve((unsigned char*)m_data, m_size);
+	if ( !value.Resolve((unsigned char*)m_data, m_size) )
+	{
+		printf( "%s[%d] is %d byte cannot convert to BArray\n", m_parent->Name(), m_index, m_size );
+		return value;
+	}
 	return value;
 }
 
